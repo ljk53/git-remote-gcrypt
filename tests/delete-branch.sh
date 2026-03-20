@@ -2,13 +2,18 @@
 
 set -e
 
+# Ensure we use the repo's git-remote-gcrypt
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PATH="$(cd "$SCRIPT_DIR/.." && pwd):$PATH"
+export PATH
+
 echo "=== Git-remote-gcrypt Bug Reproduction Test ==="
 
 # Setup test environment
 TEST_ID="$$-$(date +%s)"
 TEST_DIR="/tmp/gcrypt-test-$TEST_ID"
 export GNUPGHOME="$TEST_DIR/.gnupg"
-export GPG_TTY=$(tty)
+export GPG_TTY=$(tty 2>/dev/null || echo /dev/null)
 
 echo "Setting up test environment in $TEST_DIR"
 rm -rf "$TEST_DIR"

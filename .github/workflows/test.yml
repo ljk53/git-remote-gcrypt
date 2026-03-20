@@ -1,0 +1,41 @@
+name: Tests
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  split-pack-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
+          - test-no-size-limit
+          - test-tiny-pack-limit
+          - test-incremental-push
+          - test-full-repack
+          - test-empty-push
+          - test-local-backend
+    runs-on: ubuntu-latest
+    name: ${{ matrix.test }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run ${{ matrix.test }}
+        run: bash tests/${{ matrix.test }}.sh
+
+  system-test:
+    runs-on: ubuntu-latest
+    name: system-test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run system-test
+        run: bash tests/system-test.sh
+
+  delete-branch-test:
+    runs-on: ubuntu-latest
+    name: delete-branch
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run delete-branch test
+        run: bash tests/delete-branch.sh

@@ -798,17 +798,35 @@ EOF
 	# Only send pack if we have any objects to send
 	if [ -s "$tmp_objlist" ]
 	then
-		key_=$(genkey "$Packkey_bytes")
-		pack_id=$(export GIT_ALTERNATE_OBJECT_DIRECTORIES=$Tempdir;
-			pipefail git pack-objects --stdout < "$tmp_objlist" |
-			pipefail ENCRYPT "$key_" |
-			tee "$tmp_encrypted" | gpg_hash "$Hashtype")
+		local pack_prefix= pack_file= pack_ids=
+		pack_prefix="$Tempdir/splitpack"
+		export GIT_ALTERNATE_OBJECT_DIRECTORIES=$Tempdir
 
-		append_to @Packlist "pack :${Hashtype}:$pack_id $key_"
-		if isnonnull "$r_pack_delete"
-		then
-			append_to @Keeplist "keep :${Hashtype}:$pack_id 1"
-		fi
+		# Use git pack-objects to write packfiles to disk.
+		# If pack.packSizeLimit is set, this produces multiple packs.
+		pipefail git pack-objects "$pack_prefix" < "$tmp_objlist" >/dev/null
+
+		set +f
+		for pack_file in "$pack_prefix"-*.pack
+		do
+			set -f
+			[ -f "$pack_file" ] || continue
+			key_=$(genkey "$Packkey_bytes")
+			pack_id=$(pipefail ENCRYPT "$key_" < "$pack_file" |
+				tee "$tmp_encrypted" | gpg_hash "$Hashtype")
+
+			append_to @Packlist "pack :${Hashtype}:$pack_id $key_"
+			append_to @pack_ids "$pack_id"
+			if isnonnull "$r_pack_delete"
+			then
+				append_to @Keeplist "keep :${Hashtype}:$pack_id 1"
+			fi
+
+			# Upload this pack immediately
+			PUT "$URL" "$pack_id" "$tmp_encrypted"
+			rm -f "$tmp_encrypted" "$pack_file"
+		done
+		set -f
 	fi
 
 	# Generate manifest
@@ -823,12 +841,6 @@ $Keeplist
 repo $Repoid
 $Extnlist
 EOF
-
-	# Upload pack
-	if [ -s "$tmp_objlist" ]
-	then
-		PUT "$URL" "$pack_id" "$tmp_encrypted"
-	fi
 
 	# Upload manifest
 	PUT "$URL" "$Manifestfile" "$tmp_manifest"
