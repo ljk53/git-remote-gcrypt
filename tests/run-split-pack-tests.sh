@@ -10,6 +10,8 @@ tests=(
     test-full-repack.sh
     test-empty-push.sh
     test-local-backend.sh
+    test-cross-device.sh
+    test-stale-splitpack-cleanup.sh
 )
 
 passed=0

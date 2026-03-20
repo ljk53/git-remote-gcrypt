@@ -799,7 +799,12 @@ EOF
 	if [ -s "$tmp_objlist" ]
 	then
 		local pack_prefix= pack_file= pack_ids=
-		pack_prefix="$Tempdir/splitpack"
+		# Use $Localdir (inside $GIT_DIR) for the pack prefix so that
+		# git pack-objects can rename its temp files without crossing
+		# filesystem boundaries (its temps live in .git/objects/pack/).
+		pack_prefix="$Localdir/splitpack"
+		# Remove stale splitpack files from a previous interrupted run
+		set +f; rm -f "$Localdir"/splitpack-*; set -f
 		export GIT_ALTERNATE_OBJECT_DIRECTORIES=$Tempdir
 
 		# Use git pack-objects to write packfiles to disk.
@@ -824,9 +829,11 @@ EOF
 
 			# Upload this pack immediately
 			PUT "$URL" "$pack_id" "$tmp_encrypted"
-			rm -f "$tmp_encrypted" "$pack_file"
+			rm -f "$tmp_encrypted" "$pack_file" "${pack_file%.pack}.idx"
 		done
 		set -f
+		# Clean up any leftover splitpack temp files
+		set +f; rm -f "$Localdir"/splitpack-*; set -f
 	fi
 
 	# Generate manifest
